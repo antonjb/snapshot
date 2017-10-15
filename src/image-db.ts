@@ -13,7 +13,7 @@
 
 import {blobToArrayBuffer} from './promise-helpers';
 
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 export interface IListRecord {
   id: number | null;
@@ -122,6 +122,31 @@ class ImageDB {
     return promise;
   }
 
+  setMeta(key: string, value: any): Promise<void> {
+    const promise: Promise<void> = new Promise((resolve, reject) => {
+      this.dbPromise.then((db) => {
+        const transaction = db.transaction(['metadata'], 'readwrite');
+        const put = transaction.objectStore('metadata').put(value, key);
+        put.onsuccess = () => resolve();
+        put.onerror = reject;
+      }).catch(reject);
+    });
+    return promise;
+  }
+
+  getMeta(key: string): Promise<any> {
+    const promise: Promise<any> = new Promise((resolve, reject) => {
+      this.dbPromise.then((db) => {
+        const transaction = db.transaction(['metadata'], 'readonly');
+        const get = transaction.objectStore('metadata').get(key);
+        get.onsuccess = () => resolve(get.result);
+        get.onerror = reject;
+      }).catch(reject);
+    });
+
+    return promise;
+  }
+
   all(): Promise<IListRecord[]> {
     const promise: Promise<IListRecord[]> = new Promise((resolve, reject) => {
       this.dbPromise.then((db) => {
@@ -162,17 +187,22 @@ class ImageDB {
     const transaction: IDBTransaction = request.transaction;
     const db: IDBDatabase = request.result;
 
-    // Added in version 3, so all paths need to create these stores
-    const mediaStore = db.createObjectStore('media', {autoIncrement: true});
-    const listStore = db.createObjectStore('list', {keyPath: 'id', autoIncrement: true});
+    if (event.oldVersion < 3) {
+      const mediaStore = db.createObjectStore('media', {autoIncrement: true});
+      const listStore = db.createObjectStore('list', {keyPath: 'id', autoIncrement: true});
 
-    if (event.oldVersion !== 0) {
-      // Can only recover from version 2, version 1 was too different
-      if (event.oldVersion === 2) {
-        this.upgrade2to3(mediaStore, listStore, transaction);
-      } else {
-        db.deleteObjectStore('images');
+      if (event.oldVersion !== 0) {
+        // Can only recover from version 2, version 1 was too different
+        if (event.oldVersion === 2) {
+          this.upgrade2to3(mediaStore, listStore, transaction);
+        } else {
+          db.deleteObjectStore('images');
+        }
       }
+    }
+
+    if (event.oldVersion < 4) {
+      db.createObjectStore('metadata');
     }
   }
 
