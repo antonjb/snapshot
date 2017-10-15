@@ -23,7 +23,7 @@ export interface IListRecord {
   editedId: number | null;
   thumbnailId: number | null;
 
-  transform: {[name: string]: number} | null;
+  transform: INumDict | null;
 }
 
 interface IMediaRecord {
@@ -220,7 +220,7 @@ class ImageDB {
           original: ArrayBuffer;
           edited: ArrayBuffer | null;
           thumbnail: ArrayBuffer | null;
-          transform: {[name: string]: number} | null;
+          transform: INumDict | null;
         }
         const oldRecord: IOldRecord = cursor.value;
 
