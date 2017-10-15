@@ -176,9 +176,9 @@ export default class ImageRecord {
     return imageDB.deleteRecord(this.id, mediaIds);
   }
 
-  async drawFiltered(height?: number): Promise<Blob> {
+  async drawFiltered(height?: number): Promise<Blob | null> {
     const original = await this.getOriginal();
-    const result: Promise<Blob> = new Promise((resolve, reject) => {
+    const result: Promise<Blob | null> = new Promise((resolve, reject) => {
       if (original) {
         const source = document.createElement('img');
         source.onload = () => {
@@ -187,6 +187,8 @@ export default class ImageRecord {
             URL.revokeObjectURL(source.src);
             this.transform.apply(source, canvas, height);
             resolve(canvasToBlob(canvas, constants.IMAGE_TYPE));
+          } else {
+            resolve(null);
           }
         };
         source.onerror = reject;
@@ -204,15 +206,19 @@ export default class ImageRecord {
 
     if (this.editedState === ImageState.OutOfDate) {
       this.editedCache = await this.drawFiltered();
-      this.editedId = await imageDB.storeMedia(this.editedCache, this.editedId || undefined);
-    } else if (this.editedState === ImageState.Changed && this.editedCache !== null) {
+      this.editedState = ImageState.Changed;
+    }
+
+    if (this.editedState === ImageState.Changed && this.editedCache !== null) {
       this.editedId = await imageDB.storeMedia(this.editedCache, this.editedId || undefined);
     }
 
     if (this.thumbnailState === ImageState.OutOfDate) {
       this.thumbnailCache = await this.drawFiltered(200);
-      this.thumbnailId = await imageDB.storeMedia(this.thumbnailCache, this.thumbnailId || undefined);
-    } else if (this.thumbnailState === ImageState.Changed && this.thumbnailCache !== null) {
+      this.thumbnailState = ImageState.Changed;
+    }
+
+    if (this.thumbnailState === ImageState.Changed && this.thumbnailCache !== null) {
       this.thumbnailId = await imageDB.storeMedia(this.thumbnailCache, this.thumbnailId || undefined);
     }
 
